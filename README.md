@@ -18,4 +18,4 @@ Q: How do I build it?
 A: In a later update I will make a set of instructions on how to compile and run the system.
 
 Q: Do you plan on supporting real hardware?
-A: Yes, this is the onl reason why I'm supporting UEFI to boot the OS.
+A: Yes, this is the only reason why I'm supporting UEFI to boot the OS.
