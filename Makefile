@@ -11,7 +11,7 @@ $(BUILD_DIR)/img.raw: stage1 always
 	parted -s $@ mklabel msdos \
 		      mkpart primary fat32 1MiB 100% \
 		      set 1 boot on
-	mkfs.fat -F 32 --offset 2048 $@
+	mkfs.fat -F 32 --offset 2048 -h 2048 $@
 	install-mbr $@
 	
 	# Write first 3 bytes (jump and nop)
@@ -19,6 +19,9 @@ $(BUILD_DIR)/img.raw: stage1 always
 	
 	# write rest of stage1 (skipping over BPB)
 	dd if=$(BUILD_DIR)/stage1.bin of=$@ bs=1 skip=90 seek=1048666 conv=notrunc
+
+	# copy test.txt to the image
+	mcopy -i $@@@1048576 test.txt ::
 
 stage1: $(BUILD_DIR)/stage1.bin
 $(BUILD_DIR)/stage1.bin: src/boot/stage1/boot.asm always

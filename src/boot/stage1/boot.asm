@@ -4,7 +4,7 @@ bits 	16
 %define NL 0x0D, 0x0A
 
 
-jmp short boot
+jmp 	short boot
 nop
 
 %define BPB_START 7C00h
@@ -78,6 +78,7 @@ main:
 	imul 	ecx, dword [EBR_SECTORS_PER_FAT32]		; ecx = (fat_boot->table_count * fat_size)
 	add 	eax, ecx								; eax = fat_boot->reserved_sector_count + (fat_boot->table_count * fat_size)
 													; we ignore root_dir_sectors because it will always end up in 0 by FAT32 standard
+	add		eax, dword [BPB_HIDDEN_SECTORS]			; forgot about the previous 1M (this is the VBR)
 	mov 	dword [first_data_sector], eax
 
 	; Find the LBA sector of the root directory
@@ -90,8 +91,39 @@ main:
 	mov 	bx, 8000h
 	call 	disk_read
 
-	cli
-	hlt
+	; root directory is now at 8000h
+
+	; find stage2
+	mov 	bx, 8000h
+.search_loop:
+	cmp 	byte [bx], 0							; compare if we're in the end of the root directory
+	je 		file_not_found
+	mov 	di, bx									; di = directory entry
+	mov 	si, STAGE2_FILENAME						; si = stage2 filename
+	mov 	cx, 11									; cx = size of the filename
+	repe 	cmpsb									; compare if the filename is the same as stage2
+	je 		.found_file								; if yes file found
+	add 	bx, 20h									; go to next directory entry
+	jmp 	.search_loop
+.found_file:
+	; bx now contains the address for the directory entry
+	movzx	eax, word [bx+26]						; eax = 0000LLLL
+	movzx 	edx, word [bx+20]						; edx = 0000HHHH
+	shl		edx, 16									; edx = HHHH0000
+	or 		eax, edx								; eax = HHHHLLLL
+
+	call cluster2lba
+
+													; eax is already set by cluster2lba
+	movzx 	cx, byte [BPB_SECTORS_PER_CLUSTER]		; reads 1 cluster
+	mov 	bx, 500h
+	call 	disk_read
+
+	; print the file
+	mov 	si, 500h
+	call 	puts
+
+	jmp 	halt
 
 ;
 ; puts: prints a string to the screen
@@ -150,27 +182,32 @@ disk_read:
 	mov 	ah, 42h
 	mov		dl, [EBR_DRIVE_NUMBER]
 	int 	13h
-	jc 		.read_error
+	jc 		read_error
 
 	pop 	eax
 	pop 	dx
 	ret
-.read_error:
+
+; errors
+read_error:
 	mov 	si, read_error_msg
 	call 	puts
-	
+	jmp 	halt
+file_not_found:
+	mov 	si, file_not_found_msg
+	call 	puts
+halt:
 	cli
 	hlt
 
 ; data
-loading_msg:			db "Loading... ", 0
-read_error_msg:			db "Failed to read disk!!!", 0
-STAGE2_FILENAME:    	db "STAGE2  BIN"
+loading_msg:			db "[S1] Loading... ", NL, 0
+read_error_msg:			db "[S1] Failed to read disk!", NL, 0
+file_not_found_msg:		db "[S1] File not found!", NL, 0
+STAGE2_FILENAME:    	db "TEST    TXT"
 
 times 510-($-$$) db 0
 db 0x55, 0xAA
-
-; uninitialized data
 
 ; Disk Address Packet
 DAP:
