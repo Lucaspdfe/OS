@@ -30,7 +30,7 @@ BPB_TOTAL_SECTORS32:		equ BPB_START + 20h		; dword
 EBR_SECTORS_PER_FAT32:		equ BPB_START + 24h		; dword
 EBR_FLAGS:					equ BPB_START + 28h		; word
 EBR_FAT_VERSION:			equ BPB_START + 2Ah		; word
-EBR_CLUSTER_ROOT_DIR:		equ BPB_START + 2Ch		; dword
+EBR_ROOT_DIR_CLUSTER:		equ BPB_START + 2Ch		; dword
 EBR_FSINFO_SECTOR:			equ BPB_START + 30h		; word
 EBR_BACKUP_SECTOR:			equ BPB_START + 32h		; word
 EBR_RESERVED:				equ BPB_START + 34h		; 12 bytes
@@ -53,8 +53,12 @@ boot:
 	mov 	ss, ax
 	mov 	sp, 0x7C00
 
+	; put the expected values in DAP
+	mov 	ah, 16
+	mov 	[DAP_PacketSize], ah
+
 	; save drive number
-	mov [EBR_DRIVE_NUMBER], dl
+	mov 	[EBR_DRIVE_NUMBER], dl
 
 	; clear screen
 	mov 	ah, 0
@@ -64,6 +68,27 @@ boot:
 	; print loading message
 	mov		si, loading_msg
 	call 	puts
+
+	; some BIOSes put us in 07C0:0000 instead of the expected 0000:7C00
+	jmp 	0000h:main
+main:
+	; calculate first data sector
+	movzx 	eax, word [BPB_RESERVED_SECTORS]		; eax = fat_boot->reserved_sector_count
+	movzx 	ecx, byte [BPB_FATS]					
+	imul 	ecx, dword [EBR_SECTORS_PER_FAT32]		; ecx = (fat_boot->table_count * fat_size)
+	add 	eax, ecx								; eax = fat_boot->reserved_sector_count + (fat_boot->table_count * fat_size)
+													; we ignore root_dir_sectors because it will always end up in 0 by FAT32 standard
+	mov 	dword [first_data_sector], eax
+
+	; Find the LBA sector of the root directory
+	mov 	eax, [EBR_ROOT_DIR_CLUSTER]
+	call 	cluster2lba
+
+	; read root directory's first cluster into 0x8000 (I am NOT following the FAT chain for the root directory, after I find the file and read it I'll start developing the cluster read...)
+													; eax is already defined
+	movzx 	cx, byte [BPB_SECTORS_PER_CLUSTER]
+	mov 	bx, 8000h
+	call 	disk_read
 
 	cli
 	hlt
@@ -85,7 +110,75 @@ puts:
 .end:
 	ret
 
-loading_msg:		db "Loading...", 0
+;
+; cluster2lba: converts cluster to lba
+;
+; args:
+;	- eax: cluster
+; output:
+;	- eax: lba
+;
+cluster2lba:
+	sub 	eax, 2									; eax = cluster - 2
+	movzx 	ecx, byte [BPB_SECTORS_PER_CLUSTER]
+	imul 	eax, ecx								; eax = (cluster - 2) * fat_boot->sectors_per_cluster
+	add 	eax, dword [first_data_sector]			; eax = ((cluster - 2) * fat_boot->sectors_per_cluster) + first_data_sector
+	ret
+
+;
+; disk_read: reads from disk
+;
+; args:
+;	- eax: LBA
+;	- cx: number of sectors to read
+;	- es:bx: output buffer
+;
+disk_read:
+	push 	dx
+	push 	eax
+
+	; set all necessary DAP variables
+	mov 	[DAP_LBA], eax
+	mov 	[DAP_Sectors], cx
+	mov 	ax, es
+	mov 	[DAP_SegmentOut], ax
+	mov 	[DAP_OffsetOut], bx
+
+	; call Extended Read (ah=42h)
+	stc
+	mov 	si, DAP
+	mov 	ah, 42h
+	mov		dl, [EBR_DRIVE_NUMBER]
+	int 	13h
+	jc 		.read_error
+
+	pop 	eax
+	pop 	dx
+	ret
+.read_error:
+	mov 	si, read_error_msg
+	call 	puts
+	
+	cli
+	hlt
+
+; data
+loading_msg:			db "Loading... ", 0
+read_error_msg:			db "Failed to read disk!!!", 0
+STAGE2_FILENAME:    	db "STAGE2  BIN"
 
 times 510-($-$$) db 0
 db 0x55, 0xAA
+
+; uninitialized data
+
+; Disk Address Packet
+DAP:
+	DAP_PacketSize:		db 0
+	DAP_Reserved:		db 0
+	DAP_Sectors:		dw 0
+	DAP_OffsetOut:		dw 0
+	DAP_SegmentOut:		dw 0
+	DAP_LBA:			dq 0
+
+first_data_sector:  	dd 0
