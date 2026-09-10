@@ -60,11 +60,6 @@ boot:
 	; save drive number
 	mov 	[EBR_DRIVE_NUMBER], dl
 
-	; clear screen
-	mov 	ah, 0
-	mov 	al, 3
-	int 	10h
-
 	; print loading message
 	mov		si, loading_msg
 	call 	puts
@@ -112,16 +107,22 @@ main:
 	shl		edx, 16									; edx = HHHH0000
 	or 		eax, edx								; eax = HHHHLLLL
 
-	call cluster2lba
-
-													; eax is already set by cluster2lba
-	movzx 	cx, byte [BPB_SECTORS_PER_CLUSTER]		; reads 1 cluster
-	mov 	bx, 500h
-	call 	disk_read
-
-	; print the file
+	mov		bx, 500h
+.read_loop:
+	mov 	edx, eax								; save cluster
+	call 	cluster2lba
+	movzx	cx, byte [BPB_SECTORS_PER_CLUSTER]
+	call	disk_read
+	add		bx, word [BPB_BYTES_PER_SECTOR]
+	mov 	eax, edx
+	call 	next_cluster
+	cmp		eax, 0x0FFFFFF7
+	ja		.file_read								; jump if greater (is greater than or equal to (>=) 0x0FFFFFF8)
+	je 		file_error								; if equals 0x0FFFFFF7 then this cluster has been marked as "bad"
+	jmp 	.read_loop
+.file_read:
 	mov 	si, 500h
-	call 	puts
+	call	puts
 
 	jmp 	halt
 
@@ -188,22 +189,63 @@ disk_read:
 	pop 	dx
 	ret
 
+;
+; next_cluster: finds next cluster in FAT chain
+;
+; args:
+;	- eax: current cluster
+; output:
+;	- eax: next cluster
+;
+next_cluster:
+	push 	bx
+	push 	ecx
+	push 	edx
+
+	; formula: fat_sector = first_fat_sector + ((cluster * 4) / sector_size)
+	shl 	eax, 2 									; eax = cluster * 4
+	xor 	edx, edx
+	movzx 	ecx, word [BPB_BYTES_PER_SECTOR]
+	div 	ecx										; eax = (cluster * 4) / sector_size
+	movzx 	ecx, word [BPB_RESERVED_SECTORS]
+	add		eax, ecx								; eax = first_fat_sector + ((cluster * 4) / sector_size)
+	add 	eax, [BPB_HIDDEN_SECTORS]				; adds the hidden sectors
+	
+	; eax is the sector, edx is the sector offset (the byte where the cluster is at)
+	mov		cx, 1									; 1 sector to read
+	mov 	bx, 8000h
+	call	disk_read
+
+	mov 	bx, 8000h
+	add		bx, dx 									; yes, I am adding only the low 16-bytes, only because a sector is smaller than 65536
+	mov 	eax, dword [bx]							; table_value = *(unsigned int*)&FAT_table[ent_offset];
+	and		eax, 0FFFFFFFh							; if (fat32) table_value &= 0x0FFFFFFF;
+
+	pop 	edx
+	pop 	ecx
+	pop 	bx
+	ret
+
 ; errors
 read_error:
-	mov 	si, read_error_msg
-	call 	puts
-	jmp 	halt
+    mov     si, read_error_msg
+    jmp		short error
+file_error:
+    mov     si, file_error_msg
+    jmp     short error
 file_not_found:
-	mov 	si, file_not_found_msg
-	call 	puts
+    mov     si, file_not_found_msg
+error:
+    call    puts
 halt:
-	cli
-	hlt
+    cli
+    hlt
 
 ; data
 loading_msg:			db "[S1] Loading... ", NL, 0
-read_error_msg:			db "[S1] Failed to read disk!", NL, 0
-file_not_found_msg:		db "[S1] File not found!", NL, 0
+read_error_msg:			db "[S1] E1!", NL, 0		; Read failed!
+file_not_found_msg:		db "[S1] E2!", NL, 0		; Stage2 not found!
+file_error_msg:			db "[S1] E3!", NL, 0		; File corrupted! (bad cluster)
 STAGE2_FILENAME:    	db "TEST    TXT"
 
 times 510-($-$$) db 0
