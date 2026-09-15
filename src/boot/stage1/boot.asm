@@ -107,7 +107,7 @@ main:
 	shl		edx, 16									; edx = HHHH0000
 	or 		eax, edx								; eax = HHHHLLLL
 
-	mov		bx, 500h
+	mov		bx, STAGE2_OFFSET
 .read_loop:
 	mov 	edx, eax								; save cluster
 	call 	cluster2lba
@@ -121,8 +121,9 @@ main:
 	je 		file_error								; if equals 0x0FFFFFF7 then this cluster has been marked as "bad"
 	jmp 	.read_loop
 .file_read:
-	mov 	si, 500h
-	call	puts
+	
+	mov 	dl, [EBR_DRIVE_NUMBER]
+	jmp		STAGE2_SEGMENT:STAGE2_OFFSET
 
 	jmp 	halt
 
@@ -246,7 +247,10 @@ loading_msg:			db "[S1] Loading... ", NL, 0
 read_error_msg:			db "[S1] E1!", NL, 0		; Read failed!
 file_not_found_msg:		db "[S1] E2!", NL, 0		; Stage2 not found!
 file_error_msg:			db "[S1] E3!", NL, 0		; File corrupted! (bad cluster)
-STAGE2_FILENAME:    	db "TEST    TXT"
+STAGE2_FILENAME:    	db "STAGE2  BIN"
+
+STAGE2_OFFSET:			equ 0500h
+STAGE2_SEGMENT:			equ 0000h
 
 times 510-($-$$) db 0
 db 0x55, 0xAA
