@@ -2,6 +2,11 @@
 
 section     .entry
 
+extern 		main
+
+extern _bss_start
+extern _bss_end
+
 global      entry
 entry:
     ; set up segments and stack
@@ -16,7 +21,7 @@ entry:
     ; save boot disk
     mov     [BootDisk], dl
 
-    ; clear the screen
+    ; sets the screen resolution to 80x25 (and clear the screen)
     mov     ah, 0
     mov     al, 3
     int     10h
@@ -53,10 +58,19 @@ PMain:
     mov     fs, ax
     mov     gs, ax
     mov     ss, ax
+    mov     esp, 10000h
 
-    mov     [0B8000h], 'h'
-    mov     [0B8002h], 'i'
-    mov     [0B8004h], '!'
+    ; clear the bss (took me 1hr to figure this was the error...)
+    xor     eax, eax
+    mov     edi, _bss_start
+    mov     ecx, _bss_end
+    sub     ecx, edi
+    rep     stosb
+
+    movzx   edx, byte [BootDisk]
+    push    edx								; passes the bootdisk as an argument for _main
+
+	call 	main
 
     cli
     hlt
