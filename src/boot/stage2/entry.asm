@@ -47,7 +47,7 @@ entry:
     mov     cr0, eax
 
     ; jump to 32-bit
-    jmp 08h:PMain
+    jmp     08h:PMain
 PMain:
     [bits 32]
     ; 32-BITS LETS FUCKING GO!!!!!
