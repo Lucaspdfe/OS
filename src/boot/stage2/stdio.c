@@ -1,4 +1,5 @@
 #include "stdio.h"
+#include "x86.h"
 
 #define VGA ((volatile uint16_t*)0xB8000)
 #define WIDTH 80
@@ -10,6 +11,16 @@ uint8_t color = 0x0F;
 
 void putchar(uint8_t x, uint8_t y, char character) {
     VGA[y * WIDTH + x] = ((uint16_t)color << 8) | (uint8_t)character;
+}
+
+void set_cursor(uint8_t x, uint8_t y) {
+    uint16_t position = (y * WIDTH) + x;
+
+    outb(0x3D4, 0x0F);
+    outb(0x3D5, position & 0xFF);
+
+    outb(0x3D4, 0x0E);
+    outb(0x3D5, (position >> 8) & 0xFF);
 }
 
 void scroll(void) {
@@ -53,6 +64,8 @@ void putc(char c) {
     if (sy == HEIGHT) {
         scroll();
     }
+
+    set_cursor(sx, sy);
 }
 
 void puts(const char *s) {
