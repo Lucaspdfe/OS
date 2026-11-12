@@ -12,7 +12,7 @@ $(BUILD_DIR)/img.raw: stage1 stage2 always
 		      mkpart primary fat32 1MiB 100% \
 		      set 1 boot on
 	mkfs.fat -F 32 --offset 2048 -h 2048 $@
-	install-mbr $@
+	# turns out install-mbr is not needed because parted automatically does the job
 	
 	# Write first 3 bytes (jump and nop)
 	dd if=$(BUILD_DIR)/stage1.bin of=$@ bs=1 count=3 seek=1048576 conv=notrunc
