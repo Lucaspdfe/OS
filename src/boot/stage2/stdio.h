@@ -7,3 +7,4 @@
 #define _putchar putc
 void putc(char __c);
 void puts(const char* __s);
+void clearscreen();

@@ -1,1 +1,0 @@
-all interrupts will come disabled (NMIs and IF)

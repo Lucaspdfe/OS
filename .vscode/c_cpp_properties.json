@@ -1,0 +1,28 @@
+
+{
+    "configurations": [
+        {
+            "name": "i686-elf (Stage2)",
+            "includePath": [
+                "${workspaceFolder}/src/boot/stage2/**"
+            ],
+            "defines": [
+                "__STDC__"
+            ],
+            "compilerPath": "/home/lucaspdfe/.local/bin/i686-elf-gcc",
+            "compilerArgs": [
+                "-std=c99",
+                "-ffreestanding"
+            ],
+            "cStandard": "c99",
+            "intelliSenseMode": "gcc-x86",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/**"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            }
+        }
+    ],
+    "version": 4
+}

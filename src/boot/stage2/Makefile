@@ -1,10 +1,12 @@
+# src/boot/stage2/Makefile
+
 BUILD_DIR ?= build/
 
 ASM=nasm
 ASMFLAGS = -f elf
 
 CC=i686-elf-gcc
-CFLAGS=-std=c99 -g -ffreestanding
+CFLAGS=-std=c99 -g -ffreestanding -Werror -Wall -Wextra
 
 LD = i686-elf-gcc
 LINKFLAGS = -T linker.ld -nostdlib -ffreestanding -Wl,--oformat=binary

@@ -23,6 +23,18 @@ void set_cursor(uint8_t x, uint8_t y) {
     outb(0x3D5, (position >> 8) & 0xFF);
 }
 
+void clearscreen(void) {
+    for (uint8_t y = 0; y < HEIGHT; y++) {
+        for (uint8_t x = 0; x < WIDTH; x++) {
+            putchar(x, y, '\0');
+        }
+    }
+
+    set_cursor(0, 0);
+    sx = 0;
+    sy = 0;
+}
+
 void scroll(void) {
     for (uint8_t y = 1; y < HEIGHT; y++) {
         for (uint8_t x = 0; x < WIDTH; x++) {
