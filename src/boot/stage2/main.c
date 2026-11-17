@@ -10,6 +10,17 @@
 static Fat root_fs;
 static DiskOps disk_ops;
 
+static void print_text_byte(uint8_t byte)
+{
+    /* Keep normal text formatting; make binary/control bytes visible. */
+    if (byte == '\n' || byte == '\r' || byte == '\t' ||
+        (byte >= 0x20 && byte <= 0x7e)) {
+        putc((char)byte);
+    } else {
+        putc('.');
+    }
+}
+
 void main(uint8_t bootDrive)
 {
     clearscreen();
@@ -48,11 +59,55 @@ void main(uint8_t bootDrive)
                (info.attr & FAT_ATTR_DIR) ? "[DIR] " : "[FILE]",
                info.name,
                info.size);
+
+        err = fat_dir_next(&dir);
+        if (err == FAT_ERR_EOF)
+            break;
+        if (err != FAT_ERR_NONE)
+            break;
     }
 
-    if (err != FAT_ERR_EOF)
+    if (err != FAT_ERR_NONE && err != FAT_ERR_EOF) {
         printf("Directory read failed: %s\n", fat_get_error(err));
+        for (;;) { __asm__ volatile ("hlt"); }
+    }
 
-    /* This stage currently exposes read-only directory browsing. */
+    File test_file;
+    err = fat_file_open(&test_file, "/root/TEST.TXT", FAT_READ);
+    if (err != FAT_ERR_NONE) {
+        printf("Could not open TEST.TXT: %s (%d)\n",
+               fat_get_error(err), err);
+        for (;;) { __asm__ volatile ("hlt"); }
+    }
+
+    printf("\nContents of TEST.TXT (%u bytes):\n", test_file.size);
+
+    uint8_t buffer[128];
+    uint32_t total_read = 0;
+
+    for (;;) {
+        int bytes_read = 0;
+        err = fat_file_read(&test_file, buffer, sizeof(buffer), &bytes_read);
+        if (err != FAT_ERR_NONE) {
+            printf("\nFile read failed: %s (%d)\n", fat_get_error(err), err);
+            break;
+        }
+
+        if (bytes_read == 0)
+            break;
+
+        for (int i = 0; i < bytes_read; i++)
+            print_text_byte(buffer[i]);
+
+        total_read += (uint32_t)bytes_read;
+    }
+
+    printf("\n\nRead %u bytes from TEST.TXT.\n", total_read);
+
+    /*
+     * Do not call fat_file_close() yet: this stage's disk adapter is read-only,
+     * while the upstream close/sync path attempts to update the access date.
+     * The file remains open until stage 2 halts below.
+     */
     for (;;) { __asm__ volatile ("hlt"); }
 }
