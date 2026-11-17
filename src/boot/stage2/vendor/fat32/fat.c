@@ -1102,9 +1102,7 @@ int fat_mount(DiskOps* ops, int partition, Fat* fat, const char* name)
   FsInfo* info = (FsInfo*)g_buf;
   if (info->tail_sig != FSINFO_TAIL_SIG || 
       info->head_sig != FSINFO_HEAD_SIG ||
-      info->struct_sig != FSINFO_STRUCT_SIG ||
-      info->next_free == 0xffffffff || 
-      info->free_cnt == 0xffffffff)
+      info->struct_sig != FSINFO_STRUCT_SIG)
     return FAT_ERR_NOFAT;
   
   fat->last_used = info->next_free;

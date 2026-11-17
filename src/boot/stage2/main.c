@@ -54,23 +54,23 @@ void main(uint8_t bootDrive)
             info.name[info.name_len] = '\0';
         else
             info.name[sizeof(info.name) - 1] = '\0';
-
+        
         printf("  %s %s (%u bytes)\n",
                (info.attr & FAT_ATTR_DIR) ? "[DIR] " : "[FILE]",
                info.name,
                info.size);
-
+        
         err = fat_dir_next(&dir);
+        
         if (err == FAT_ERR_EOF)
             break;
+        
         if (err != FAT_ERR_NONE)
             break;
     }
-
-    if (err != FAT_ERR_NONE && err != FAT_ERR_EOF) {
+    
+    if (err != FAT_ERR_NONE && err != FAT_ERR_EOF)
         printf("Directory read failed: %s\n", fat_get_error(err));
-        for (;;) { __asm__ volatile ("hlt"); }
-    }
 
     File test_file;
     err = fat_file_open(&test_file, "/root/TEST.TXT", FAT_READ);
