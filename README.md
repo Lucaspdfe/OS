@@ -19,3 +19,12 @@ A: In a later update I will make a set of instructions on how to compile and run
 
 Q: Do you plan on supporting real hardware?
 A: Yes, this is the only reason why I'm supporting UEFI to boot the OS.
+
+## Third-party code
+
+The BIOS stage-2 bootloader vendors `ultraembedded/fat_io_lib` under
+`src/boot/stage2/fat_io_lib`. That component is licensed under GPL-3.0;
+its license and provenance are included alongside the vendored sources.
+The root `LICENSE` continues to describe the original OS code. A build
+that incorporates the FAT library must be distributed in compliance with
+the GPL-3.0 terms applicable to the combined work.
