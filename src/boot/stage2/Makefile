@@ -6,12 +6,13 @@ ASM=nasm
 ASMFLAGS = -f elf
 
 CC=i686-elf-gcc
-CFLAGS=-std=c99 -g -ffreestanding -Werror -Wall -Wextra
+CFLAGS=-std=c99 -g -ffreestanding -Werror -Wall -Wextra \
+       -DFATFS_USE_CUSTOM_OPTS_FILE -Ifat_io_lib/src
 
 LD = i686-elf-gcc
 LINKFLAGS = -T linker.ld -nostdlib -ffreestanding -Wl,--oformat=binary
 
-SOURCES_C=$(wildcard *.c)
+SOURCES_C=$(wildcard *.c) $(wildcard fat_io_lib/src/*.c)
 SOURCES_ASM=$(wildcard *.asm)
 OBJECTS_C=$(patsubst %.c, $(BUILD_DIR)/stage2/c/%.obj, $(SOURCES_C))
 OBJECTS_ASM=$(patsubst %.asm, $(BUILD_DIR)/stage2/asm/%.obj, $(SOURCES_ASM))
@@ -22,6 +23,10 @@ all: stage2
 stage2: $(BUILD_DIR)/stage2.bin
 $(BUILD_DIR)/stage2.bin: $(OBJECTS_ASM) $(OBJECTS_C)
 	$(LD) $(LINKFLAGS) -Wl,-Map=$(BUILD_DIR)/stage2.map -o $@ $^ -lgcc
+
+$(BUILD_DIR)/stage2/c/fat_io_lib/src/%.obj: fat_io_lib/src/%.c
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Wno-error -c -o $@ $<
 
 $(BUILD_DIR)/stage2/c/%.obj: %.c
 	mkdir -p $(@D)
