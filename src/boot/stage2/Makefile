@@ -7,7 +7,7 @@ ASMFLAGS = -f elf
 
 CC=i686-elf-gcc
 CFLAGS=-std=c99 -g -ffreestanding -Werror -Wall -Wextra \
-       -DFATFS_USE_CUSTOM_OPTS_FILE -Ifat_io_lib/src
+       -DFATFS_USE_CUSTOM_OPTS_FILE -I. -Ifat_io_lib/src
 
 LD = i686-elf-gcc
 LINKFLAGS = -T linker.ld -nostdlib -ffreestanding -Wl,--oformat=binary
