@@ -155,6 +155,70 @@ disk_read:
     pop     ebp
     ret
 
+; uint8_t __attribute__((cdecl)) disk_write(uint8_t disk, uint64_t LBA, uint16_t sectors, void* buffer);
+global disk_write
+disk_write:
+    [bits 32]
+
+    ; new call frame
+    push    ebp
+    mov     ebp, esp
+
+    Enter_16R
+
+    [bits 16]
+
+    ; [ebp+0]:  ebp
+    ; [ebp+4]:  return address
+    ; [ebp+8]:  uint8_t disk
+    ; [ebp+12]: low uint64_t LBA
+    ; [ebp+16]: high uint64_t LBA
+    ; [ebp+20]: uint16_t sectors
+    ; [ebp+24]: void* buffer
+    ; eax:      uint8_t return
+
+    ; sector count
+    mov     ax, [ebp+20]
+    mov     [DAP_SECTORS], ax
+    
+    ; buffer
+    mov     eax, [ebp + 24]       ; buffer linear address
+    LinearToSegOffset eax, es, ax
+    mov     [DAP_SEGMENT], es
+    mov     [DAP_OFFSET], ax
+
+    ; LBA
+    mov     eax, [ebp+12]
+    mov     [DAP_LBA], eax
+    mov     eax, [ebp+16]
+    mov     [DAP_LBA+4], eax
+
+    ; Extended Write (ah=0x43)
+    mov     dl, [ebp+8]
+    mov     si, DAP
+    mov     ah, 43h
+    int     13h
+
+    jc      .error
+.done:
+    xor     eax, eax
+    jmp     .exit
+.error:
+    mov     al, ah
+    xor     ah, ah
+.exit:
+    push    eax
+
+    Enter_32P
+
+    pop     eax
+
+    [bits 32]
+
+    mov     esp, ebp
+    pop     ebp
+    ret
+
 section .data
 
 DAP:
